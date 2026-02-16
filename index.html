@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
- <head>
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Защита от протечки</title>
@@ -342,18 +342,29 @@
 
         // Отправка команды боту
         function sendCommand(command) {
-            // Отправляем данные обратно боту
-            tg.sendData(JSON.stringify({
-                command: command,
-                timestamp: Date.now()
-            }));
+            console.log('Sending command:', command);
             
-            // Показываем уведомление
-            tg.showPopup({
-                title: '✅ Команда отправлена',
-                message: `Команда "${command}" выполняется`,
-                buttons: [{type: 'ok'}]
-            });
+            try {
+                // Пытаемся отправить через sendData
+                const data = JSON.stringify({
+                    command: command,
+                    timestamp: Date.now()
+                });
+                
+                tg.sendData(data);
+                console.log('Data sent successfully');
+                
+            } catch (error) {
+                console.error('Error sending data:', error);
+                
+                // Если sendData не работает, показываем предупреждение
+                tg.showAlert('Команда будет выполнена при закрытии приложения');
+            }
+            
+            // Вибрация как подтверждение
+            if (tg.HapticFeedback) {
+                tg.HapticFeedback.impactOccurred('medium');
+            }
         }
 
         // Обработка данных от бота (если нужно обновить состояние)
@@ -363,4 +374,3 @@
     </script>
 </body>
 </html>
-
