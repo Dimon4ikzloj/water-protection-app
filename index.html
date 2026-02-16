@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Защита от протечки</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            padding: 16px;
+            user-select: none;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--tg-theme-hint-color, #ddd);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-badge.loading {
+            background: #FF9800;
+        }
+
+        .crane-card {
+            background: var(--tg-theme-secondary-bg-color, #f5f5f5);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .crane-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .crane-title {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .crane-icon {
+            font-size: 24px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 32px;
+            background: #ccc;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #4CAF50;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: left 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch.active .toggle-slider {
+            left: 32px;
+        }
+
+        .crane-status {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color, #999);
+            margin-top: 8px;
+        }
+
+        .all-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .control-btn {
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .control-btn.open-all {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .control-btn.close-all {
+            background: #f44336;
+            color: white;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .status-btn {
+            grid-column: 1 / -1;
+            background: var(--tg-theme-button-color, #0088cc);
+            color: var(--tg-theme-button-text-color, white);
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: var(--tg-theme-hint-color, #999);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .sending {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>
+            🚰 Защита от протечки
+        </h1>
+        <span class="status-badge" id="systemStatus">Подключение...</span>
+    </div>
+
+    <div id="content" class="hidden">
+        <!-- Холодная вода в ванной -->
+        <div class="crane-card">
+            <div class="crane-header">
+                <div class="crane-title">
+                    <span class="crane-icon">🛁❄️</span>
+                    <span>Холодная ванная</span>
+                </div>
+                <div class="toggle-switch" id="toggle1" onclick="toggleCrane(1)">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div class="crane-status" id="status1">Состояние: закрыт</div>
+        </div>
+
+        <!-- Горячая вода в ванной -->
+        <div class="crane-card">
+            <div class="crane-header">
+                <div class="crane-title">
+                    <span class="crane-icon">🛁🔥</span>
+                    <span>Горячая ванная</span>
+                </div>
+                <div class="toggle-switch" id="toggle2" onclick="toggleCrane(2)">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div class="crane-status" id="status2">Состояние: закрыт</div>
+        </div>
+
+        <!-- Туалет -->
+        <div class="crane-card">
+            <div class="crane-header">
+                <div class="crane-title">
+                    <span class="crane-icon">🚽💧</span>
+                    <span>Туалет</span>
+                </div>
+                <div class="toggle-switch" id="toggle3" onclick="toggleCrane(3)">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div class="crane-status" id="status3">Состояние: закрыт</div>
+        </div>
+
+        <!-- Управление всеми кранами -->
+        <div class="all-controls">
+            <button class="control-btn open-all" onclick="openAll()">
+                ✅ Открыть все
+            </button>
+            <button class="control-btn close-all" onclick="closeAll()">
+                ❌ Закрыть все
+            </button>
+            <button class="control-btn status-btn" onclick="getStatus()">
+                📊 Обновить статус
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram Web App
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.enableClosingConfirmation();
+
+        // Устанавливаем цвет заголовка
+        tg.setHeaderColor('#0088cc');
+
+        // Состояние кранов
+        let cranesState = {
+            1: false, // Холодная ванная
+            2: false, // Горячая ванная
+            3: false  // Туалет
+        };
+
+        // Инициализация при загрузке
+        window.addEventListener('load', function() {
+            document.getElementById('systemStatus').textContent = 'Подключено';
+            document.getElementById('systemStatus').classList.remove('loading');
+            document.getElementById('content').classList.remove('hidden');
+            
+            // Запрашиваем начальный статус
+            getStatus();
+        });
+
+        // Переключение крана
+        function toggleCrane(craneNum) {
+            const toggle = document.getElementById('toggle' + craneNum);
+            const status = document.getElementById('status' + craneNum);
+            
+            // Меняем состояние
+            cranesState[craneNum] = !cranesState[craneNum];
+            
+            // Обновляем UI
+            if (cranesState[craneNum]) {
+                toggle.classList.add('active');
+                status.textContent = 'Состояние: открыт';
+                sendCommand(`open_crane${craneNum}`);
+            } else {
+                toggle.classList.remove('active');
+                status.textContent = 'Состояние: закрыт';
+                sendCommand(`close_crane${craneNum}`);
+            }
+            
+            // Вибрация
+            if (tg.HapticFeedback) {
+                tg.HapticFeedback.impactOccurred('medium');
+            }
+        }
+
+        // Открыть все краны
+        function openAll() {
+            cranesState[1] = cranesState[2] = cranesState[3] = true;
+            updateUI();
+            sendCommand('open');
+            
+            if (tg.HapticFeedback) {
+                tg.HapticFeedback.notificationOccurred('success');
+            }
+        }
+
+        // Закрыть все краны
+        function closeAll() {
+            cranesState[1] = cranesState[2] = cranesState[3] = false;
+            updateUI();
+            sendCommand('close');
+            
+            if (tg.HapticFeedback) {
+                tg.HapticFeedback.notificationOccurred('warning');
+            }
+        }
+
+        // Получить статус
+        function getStatus() {
+            sendCommand('status');
+            
+            if (tg.HapticFeedback) {
+                tg.HapticFeedback.impactOccurred('light');
+            }
+        }
+
+        // Обновление UI
+        function updateUI() {
+            for (let i = 1; i <= 3; i++) {
+                const toggle = document.getElementById('toggle' + i);
+                const status = document.getElementById('status' + i);
+                
+                if (cranesState[i]) {
+                    toggle.classList.add('active');
+                    status.textContent = 'Состояние: открыт';
+                } else {
+                    toggle.classList.remove('active');
+                    status.textContent = 'Состояние: закрыт';
+                }
+            }
+        }
+
+        // Отправка команды боту
+        function sendCommand(command) {
+            // Отправляем данные обратно боту
+            tg.sendData(JSON.stringify({
+                command: command,
+                timestamp: Date.now()
+            }));
+            
+            // Показываем уведомление
+            tg.showPopup({
+                title: '✅ Команда отправлена',
+                message: `Команда "${command}" выполняется`,
+                buttons: [{type: 'ok'}]
+            });
+        }
+
+        // Обработка данных от бота (если нужно обновить состояние)
+        tg.onEvent('themeChanged', function() {
+            console.log('Theme changed');
+        });
+    </script>
+</body>
+</html>
